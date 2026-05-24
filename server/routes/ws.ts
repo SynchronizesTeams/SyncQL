@@ -95,7 +95,8 @@ export default defineWebSocketHandler({
       const writeActions = [
         'table-move-end', 'table-create', 'table-update', 'table-delete',
         'column-create', 'column-update', 'column-delete',
-        'relation-create', 'relation-delete', 'diagram-update'
+        'relation-create', 'relation-delete', 'diagram-update',
+        'note-create', 'note-update', 'note-delete'
       ];
       
       if (writeActions.includes(data.type) && activeRole === 'viewer') {
@@ -253,6 +254,44 @@ export default defineWebSocketHandler({
             type: 'diagram-updated',
             name: data.name,
             dialect: data.dialect
+          }));
+          if (data.ackId) peer.send(JSON.stringify({ type: 'ack', ackId: data.ackId }));
+          break;
+
+        case 'note-create':
+          exec(`
+            INSERT INTO notes (id, diagram_id, content, color, x, y, width, height)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          `, [
+            data.note.id, diagramId, data.note.content || '', data.note.color || 'note-yellow',
+            data.note.x, data.note.y, data.note.width || 200, data.note.height || 150
+          ]);
+          peer.publish(diagramId, JSON.stringify({
+            type: 'note-created',
+            note: data.note
+          }));
+          if (data.ackId) peer.send(JSON.stringify({ type: 'ack', ackId: data.ackId }));
+          break;
+          
+        case 'note-update':
+          exec(`
+            UPDATE notes SET content = ?, color = ?, x = ?, y = ?, width = ?, height = ?
+            WHERE id = ?
+          `, [
+            data.note.content, data.note.color, data.note.x, data.note.y, data.note.width, data.note.height, data.note.id
+          ]);
+          peer.publish(diagramId, JSON.stringify({
+            type: 'note-updated',
+            note: data.note
+          }));
+          if (data.ackId) peer.send(JSON.stringify({ type: 'ack', ackId: data.ackId }));
+          break;
+          
+        case 'note-delete':
+          exec('DELETE FROM notes WHERE id = ?', [data.noteId]);
+          peer.publish(diagramId, JSON.stringify({
+            type: 'note-deleted',
+            noteId: data.noteId
           }));
           if (data.ackId) peer.send(JSON.stringify({ type: 'ack', ackId: data.ackId }));
           break;

@@ -51,10 +51,14 @@ export default defineEventHandler((event) => {
   // 4. Fetch all Relations
   const relations = query('SELECT * FROM relations WHERE diagram_id = ?', [diagramId]);
   
+  // 5. Fetch all Notes
+  const notes = query('SELECT * FROM notes WHERE diagram_id = ?', [diagramId]);
+  
   return {
     diagram,
     tables,
     columns,
-    relations
+    relations,
+    notes
   };
 });
