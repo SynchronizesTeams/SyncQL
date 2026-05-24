@@ -13,11 +13,11 @@ export default defineEventHandler((event) => {
 
   let workspaces = query(
     `SELECT w.*, 
-            (SELECT COUNT(*) FROM workspace_members WHERE workspace_id = w.id) as member_count,
+            (SELECT COUNT(*) FROM workspace_members WHERE workspace_id = w.id AND status = 'accepted') as member_count,
             (SELECT COUNT(*) FROM diagrams WHERE workspace_id = w.id) as diagram_count
      FROM workspaces w 
      LEFT JOIN workspace_members wm ON w.id = wm.workspace_id 
-     WHERE w.owner_id = ? OR wm.user_id = ? 
+     WHERE w.owner_id = ? OR (wm.user_id = ? AND wm.status = 'accepted') 
      GROUP BY w.id`,
     [user.userId, user.userId]
   );
@@ -30,8 +30,8 @@ export default defineEventHandler((event) => {
       [personalId, 'Personal Workspace', user.userId]
     );
     exec(
-      `INSERT INTO workspace_members (workspace_id, user_id, role) VALUES (?, ?, ?)`,
-      [personalId, user.userId, 'owner']
+      `INSERT INTO workspace_members (workspace_id, user_id, role, status) VALUES (?, ?, ?, ?)`,
+      [personalId, user.userId, 'owner', 'accepted']
     );
     
     // Re-fetch
