@@ -112,16 +112,17 @@
 
         <!-- Attributes checkmarks -->
         <div class="checkbox-options-panel">
-          <label class="checkbox-option">
+          <label class="checkbox-option" :class="{ 'disabled-check': hasOtherPrimaryKey || readOnly }">
             <input 
               type="checkbox" 
               v-model="colForm.is_primary" 
-              :disabled="readOnly"
+              :disabled="hasOtherPrimaryKey || readOnly"
               @change="onPrimaryChange" 
             />
             <div class="checkbox-label-block">
               <span class="checkbox-title">Primary Key</span>
-              <span class="checkbox-desc">Primary unique identifier</span>
+              <span class="checkbox-desc" v-if="!hasOtherPrimaryKey">Primary unique identifier</span>
+              <span class="checkbox-desc" v-else style="color: hsl(var(--warning) / 0.8)">Table already has a primary key</span>
             </div>
           </label>
 
@@ -151,16 +152,17 @@
             </div>
           </label>
 
-          <label class="checkbox-option" :class="{ 'disabled-check': readOnly }">
+          <label class="checkbox-option" :class="{ 'disabled-check': !isAutoIncrementSupported || readOnly }">
             <input 
               type="checkbox" 
               v-model="colForm.is_auto_increment" 
-              :disabled="readOnly"
+              :disabled="!isAutoIncrementSupported || readOnly"
               @change="updateColumn" 
             />
             <div class="checkbox-label-block">
               <span class="checkbox-title">Auto Increment</span>
-              <span class="checkbox-desc">Generate serial values</span>
+              <span class="checkbox-desc" v-if="isAutoIncrementSupported">Generate serial values</span>
+              <span class="checkbox-desc" v-else style="color: hsl(var(--warning) / 0.8)">Unsupported for non-numeric types</span>
             </div>
           </label>
         </div>
@@ -190,6 +192,72 @@
             @input="updateColumn"
           ></textarea>
         </div>
+
+        <!-- 3. Foreign Key Relationship Config inside Column Inspector -->
+        <div v-if="columnRelation" class="form-group border-top-form">
+          <label>Foreign Key Relationship</label>
+          <div class="relation-mapping-box" style="margin-top: 0.5rem; margin-bottom: 0.75rem;">
+            <div class="mapping-node">
+              <span class="mapping-title">This Column</span>
+              <span class="mapping-table-col">{{ getTableName(selectedColumn.table_id) }}.{{ selectedColumn.name }}</span>
+            </div>
+            <div class="mapping-divider" style="margin: 0.25rem 0;">references parent</div>
+            <div class="mapping-node">
+              <span class="mapping-title">Parent Column</span>
+              <span class="mapping-table-col" v-if="columnRelation.source_column_id === selectedColumn.id">
+                {{ getTableName(columnRelation.target_table_id) }}.{{ getColumnName(columnRelation.target_column_id) }}
+              </span>
+              <span class="mapping-table-col" v-else>
+                {{ getTableName(columnRelation.source_table_id) }}.{{ getColumnName(columnRelation.source_column_id) }}
+              </span>
+            </div>
+          </div>
+          <button 
+            v-if="!readOnly" 
+            class="btn btn-secondary btn-xs" 
+            style="align-self: flex-start; background: hsla(0, 80%, 60%, 0.15); border-color: hsla(0, 80%, 60%, 0.3); color: #ffa4a4;"
+            @click="$emit('delete-relation', columnRelation.id)"
+          >
+            Delete Foreign Key
+          </button>
+        </div>
+
+        <div v-else-if="!readOnly" class="form-group border-top-form">
+          <label>Configure Foreign Key (FK)</label>
+          <p style="font-size: 0.675rem; color: hsl(var(--muted-foreground)); margin-bottom: 0.75rem;">
+            Establish a new visual linking relationship from this column.
+          </p>
+          
+          <div class="fk-creator-fields" style="display: flex; flex-direction: column; gap: 0.75rem;">
+            <div class="form-group-sub" style="display: flex; flex-direction: column; gap: 0.25rem;">
+              <span style="font-size: 0.65rem; color: hsl(var(--muted-foreground)); font-weight: 700; text-transform: uppercase;">Parent Table</span>
+              <select v-model="fkTargetTableId" class="input-field select-field" style="padding: 0.35rem 0.5rem; font-size: 0.775rem;">
+                <option value="">-- Select Table --</option>
+                <option v-for="t in otherTables" :key="t.id" :value="t.id">{{ t.name }}</option>
+              </select>
+            </div>
+
+            <div class="form-group-sub" v-if="fkTargetTableId" style="display: flex; flex-direction: column; gap: 0.25rem;">
+              <span style="font-size: 0.65rem; color: hsl(var(--muted-foreground)); font-weight: 700; text-transform: uppercase;">Parent Column</span>
+              <select v-model="fkTargetColumnId" class="input-field select-field" style="padding: 0.35rem 0.5rem; font-size: 0.775rem;">
+                <option value="">-- Select Column --</option>
+                <option v-for="c in targetColumns" :key="c.id" :value="c.id">
+                  {{ c.name }} {{ c.is_primary ? '(PK)' : '' }}
+                </option>
+              </select>
+            </div>
+
+            <button 
+              v-if="fkTargetTableId && fkTargetColumnId"
+              class="btn btn-primary btn-xs"
+              style="align-self: flex-start; margin-top: 0.25rem;"
+              @click="createForeignKey"
+            >
+              Establish Foreign Key Link
+            </button>
+          </div>
+        </div>
+      </div>
       </div>
     </div>
 
@@ -301,7 +369,7 @@ const props = defineProps({
 const emit = defineEmits([
   'update-table', 'update-column', 'update-relation', 
   'delete-table', 'delete-column', 'delete-relation',
-  'add-column', 'select-table', 'select-column'
+  'add-column', 'select-table', 'select-column', 'add-relation'
 ]);
 
 // Color Presets mapping HSL stylesheets
@@ -410,6 +478,77 @@ const onPrimaryChange = () => {
     colForm.value.is_nullable = false;
   }
   updateColumn();
+};
+
+const isAutoIncrementSupported = computed(() => {
+  const t = colForm.value.type.toUpperCase();
+  return t === 'INT' || t === 'BIGINT' || t === 'INTEGER' || t === 'SMALLINT' || t === 'SERIAL' || t === 'BIGSERIAL';
+});
+
+// If type is not auto-incrementable, make sure it gets unchecked
+watch(() => colForm.value.type, (newType) => {
+  if (newType) {
+    const t = newType.toUpperCase();
+    const supportsAI = t === 'INT' || t === 'BIGINT' || t === 'INTEGER' || t === 'SMALLINT' || t === 'SERIAL' || t === 'BIGSERIAL';
+    if (!supportsAI && colForm.value.is_auto_increment) {
+      colForm.value.is_auto_increment = false;
+      updateColumn();
+    }
+  }
+});
+
+const hasOtherPrimaryKey = computed(() => {
+  if (!selectedColumn.value) return false;
+  return props.columns.some(c => 
+    c.table_id === selectedColumn.value.table_id && 
+    c.id !== selectedColumn.value.id && 
+    c.is_primary === 1
+  );
+});
+
+const columnRelation = computed(() => {
+  if (!selectedColumn.value) return null;
+  return props.relations.find(r => 
+    r.source_column_id === selectedColumn.value.id || 
+    r.target_column_id === selectedColumn.value.id
+  );
+});
+
+// Foreign Key Creator fields
+const fkTargetTableId = ref('');
+const fkTargetColumnId = ref('');
+
+const otherTables = computed(() => {
+  if (!selectedColumn.value) return [];
+  return props.tables.filter(t => t.id !== selectedColumn.value.table_id);
+});
+
+watch(selectedColumn, () => {
+  fkTargetTableId.value = '';
+  fkTargetColumnId.value = '';
+});
+
+const targetColumns = computed(() => {
+  if (!fkTargetTableId.value) return [];
+  return props.columns.filter(c => c.table_id === fkTargetTableId.value);
+});
+
+const createForeignKey = () => {
+  if (!selectedColumn.value || !fkTargetTableId.value || !fkTargetColumnId.value) return;
+  
+  emit('add-relation', {
+    id: crypto.randomUUID(),
+    source_table_id: selectedColumn.value.table_id,
+    source_column_id: selectedColumn.value.id,
+    target_table_id: fkTargetTableId.value,
+    target_column_id: fkTargetColumnId.value,
+    type: '1:N',
+    on_delete: 'CASCADE',
+    on_update: 'CASCADE'
+  });
+  
+  fkTargetTableId.value = '';
+  fkTargetColumnId.value = '';
 };
 
 // 3. Relation references
