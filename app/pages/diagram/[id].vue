@@ -38,7 +38,7 @@
             class="collaborator-avatar-box"
             :class="[peer.role]"
             :style="{ '--collab-color': peer.color }"
-            :title="`${peer.name} (${peer.role.toUpperCase()}${peer.userId === user.userId ? ' - You' : ''})`"
+            :title="`${peer.name} (${peer.role.toUpperCase()}${peer.userId === user?.userId ? ' - You' : ''})`"
           >
             <img :src="peer.avatarUrl" alt="Avatar" class="collab-avatar" />
             <span class="online-indicator"></span>
@@ -207,6 +207,8 @@
             class="note-bubble-popover glass-panel"
             :class="n.color"
             @mousedown.stop
+            @mouseenter="hoveredNoteId = n.id"
+            @mouseleave="hoveredNoteId = null"
           >
             <!-- Popover Header -->
             <div class="popover-header">
@@ -215,7 +217,7 @@
                 <span class="popover-time">commented</span>
               </div>
               <button 
-                v-if="myRole !== 'viewer' && n.user_id === user.userId" 
+                v-if="myRole !== 'viewer' && n.user_id === user?.userId" 
                 class="popover-delete-btn" 
                 @click="deleteNote(n.id)"
                 title="Delete note"
@@ -230,14 +232,14 @@
                 v-model="n.content"
                 class="popover-textarea"
                 placeholder="Write a comment..."
-                :readonly="myRole === 'viewer' || n.user_id !== user.userId"
+                :readonly="myRole === 'viewer' || n.user_id !== user?.userId"
                 @input="onNoteInput(n)"
               ></textarea>
             </div>
 
             <!-- Popover controls / color palettes (visible to author) -->
             <div 
-              v-if="myRole !== 'viewer' && n.user_id === user.userId" 
+              v-if="myRole !== 'viewer' && n.user_id === user?.userId" 
               class="popover-footer"
             >
               <div class="popover-colors">
@@ -570,8 +572,13 @@ const activeNoteResize = ref(null);
 // Drag notes handlers
 const onNoteMouseDown = (e, note) => {
   if (myRole.value === 'viewer') return;
-  selectedNoteId.value = note.id;
-  deselectAll(); // Deselect tables / columns
+  
+  const wasSelected = selectedNoteId.value === note.id;
+  deselectAll(); // Deselect tables / columns first
+  
+  if (!wasSelected) {
+    selectedNoteId.value = note.id;
+  }
   
   activeNoteDrag.value = {
     note,
