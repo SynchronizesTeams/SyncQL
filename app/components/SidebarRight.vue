@@ -465,6 +465,11 @@ const getColumnName = (colId) => {
   border-bottom-left-radius: 0;
   background: hsla(224, 25%, 10%, 0.85);
   overflow: hidden;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.sidebar-right.is-collapsed {
+  transform: translateX(290px);
 }
 
 .inspector-container {

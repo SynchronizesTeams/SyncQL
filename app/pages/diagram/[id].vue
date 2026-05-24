@@ -82,6 +82,7 @@
 
     <!-- Sidebars layouts -->
     <SidebarLeft 
+      :class="{ 'is-collapsed': !isLeftSidebarOpen }"
       :tables="tables"
       :columns="columns"
       :relations="relations"
@@ -91,6 +92,17 @@
       @center-table="centerTableOnCanvas"
       @update-dialect="updateDialect"
     />
+
+    <!-- Left Sidebar Toggle Button -->
+    <button 
+      class="sidebar-toggle-btn left-toggle"
+      :class="{ 'is-sidebar-closed': !isLeftSidebarOpen }"
+      @click="isLeftSidebarOpen = !isLeftSidebarOpen"
+      :title="isLeftSidebarOpen ? 'Collapse Navigation' : 'Expand Navigation'"
+    >
+      <ChevronLeft v-if="isLeftSidebarOpen" class="toggle-icon" />
+      <ChevronRight v-else class="toggle-icon" />
+    </button>
 
     <!-- Main Zoomable & Pannable Grid Canvas -->
     <div 
@@ -173,6 +185,7 @@
 
     <!-- Right Side Context Panel Inspector -->
     <SidebarRight 
+      :class="{ 'is-collapsed': !isRightSidebarOpen }"
       :active-type="inspectorType"
       :tables="tables"
       :columns="columns"
@@ -192,6 +205,17 @@
       @select-table="selectElement('table', $event)"
       @select-column="selectElement('column', $event)"
     />
+
+    <!-- Right Sidebar Toggle Button -->
+    <button 
+      class="sidebar-toggle-btn right-toggle"
+      :class="{ 'is-sidebar-closed': !isRightSidebarOpen }"
+      @click="isRightSidebarOpen = !isRightSidebarOpen"
+      :title="isRightSidebarOpen ? 'Collapse Inspector' : 'Expand Inspector'"
+    >
+      <ChevronRight v-if="isRightSidebarOpen" class="toggle-icon" />
+      <ChevronLeft v-else class="toggle-icon" />
+    </button>
 
     <!-- Exporter Modal panel -->
     <ExportModal 
@@ -253,9 +277,13 @@ import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { useAuth } from '~/composables/useAuth';
 import { 
-  ArrowLeft, Share2, Plus, Minus, Download, 
-  Maximize2 
+  ArrowLeft, Share2, Plus, Download, 
+  Maximize2, ChevronLeft, ChevronRight
 } from 'lucide-vue-next';
+
+// Sidebar toggle collapsed states
+const isLeftSidebarOpen = ref(true);
+const isRightSidebarOpen = ref(true);
 
 // Standard dimension configurations for canvas port calculations
 const TABLE_WIDTH = 220;
@@ -1004,6 +1032,51 @@ const denyEditAccess = (req) => {
 </script>
 
 <style scoped>
+/* Sidebar Toggle System */
+.sidebar-toggle-btn {
+  position: absolute;
+  top: 75px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: hsla(224, 25%, 12%, 0.9);
+  border: 1px solid hsl(var(--border));
+  color: hsl(var(--foreground));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 1000;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.sidebar-toggle-btn:hover {
+  background-color: hsl(var(--primary));
+  border-color: hsl(var(--primary));
+  color: #fff;
+  transform: scale(1.1);
+}
+
+.left-toggle {
+  left: 236px; /* 250px left sidebar width minus overlap */
+}
+.left-toggle.is-sidebar-closed {
+  left: 12px;
+}
+
+.right-toggle {
+  right: 266px; /* 280px right sidebar width minus overlap */
+}
+.right-toggle.is-sidebar-closed {
+  right: 12px;
+}
+
+.toggle-icon {
+  width: 14px;
+  height: 14px;
+}
+
 /* Main Canvas Workspace Container */
 .diagram-workspace {
   width: 100vw;

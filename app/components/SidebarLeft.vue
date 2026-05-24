@@ -120,6 +120,11 @@ const getColumnsCount = (tableId) => {
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;
   background: hsla(224, 25%, 10%, 0.85);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.sidebar-left.is-collapsed {
+  transform: translateX(-260px);
 }
 
 .sidebar-section {
