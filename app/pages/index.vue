@@ -69,7 +69,12 @@
               <span class="workspace-avatar-letter">{{ ws.name.charAt(0).toUpperCase() }}</span>
               <div class="workspace-btn-meta">
                 <span class="workspace-btn-name">{{ ws.name }}</span>
-                <span class="workspace-btn-desc">{{ ws.diagram_count || 0 }} diagrams</span>
+                <div class="workspace-desc-row">
+                  <span class="workspace-btn-desc">{{ ws.diagram_count || 0 }} diagrams</span>
+                  <span class="workspace-owner-pill" :class="{ 'is-mine': ws.owner_id === user?.userId }">
+                    {{ ws.owner_id === user?.userId ? 'Owner' : ws.owner_name }}
+                  </span>
+                </div>
               </div>
             </div>
           </button>
@@ -370,6 +375,7 @@
               autocomplete="off"
               required
               @input="handleLiveSearch"
+              @focus="handleLiveSearch"
             />
             
             <!-- Live Autocomplete Search Results Dropdown -->
@@ -553,7 +559,7 @@ let searchTimeout = null;
 const handleLiveSearch = () => {
   if (searchTimeout) clearTimeout(searchTimeout);
   const q = inviteUsername.value.trim();
-  if (q.length < 2) {
+  if (q.length === 1) {
     searchUsersList.value = [];
     return;
   }
@@ -1437,6 +1443,30 @@ const formatDate = (dateStr) => {
 .workspace-btn-desc {
   font-size: 0.65rem;
   color: hsl(var(--muted-foreground));
+}
+
+.workspace-desc-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.workspace-owner-pill {
+  font-size: 0.575rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 0.05rem 0.25rem;
+  border-radius: 4px;
+  background: hsl(var(--muted) / 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: hsl(var(--muted-foreground));
+}
+
+.workspace-owner-pill.is-mine {
+  background: hsl(var(--primary) / 0.1);
+  border-color: hsl(var(--primary) / 0.2);
+  color: hsl(var(--primary));
 }
 
 .workspace-sidebar-divider {
