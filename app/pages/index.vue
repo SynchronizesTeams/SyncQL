@@ -412,6 +412,8 @@ const formatDate = (dateStr) => {
 .dashboard-container {
   min-height: 100vh;
   background-color: hsl(var(--background));
+  display: flex;
+  flex-direction: column;
 }
 
 .dashboard-header {
@@ -513,6 +515,8 @@ const formatDate = (dateStr) => {
   max-width: 1200px;
   margin: 0 auto;
   padding: 3rem 1.5rem;
+  flex: 1;
+  width: 100%;
 }
 
 .welcome-banner {
