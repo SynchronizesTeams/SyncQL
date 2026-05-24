@@ -1,0 +1,228 @@
+/* Global CSS variables & Modern Theme System */
+:root {
+  --background: 224 25% 8%;
+  --foreground: 210 20% 98%;
+  
+  --card: 224 25% 12%;
+  --card-foreground: 210 20% 98%;
+  --card-hover: 224 25% 15%;
+  
+  --popover: 224 25% 10%;
+  --popover-foreground: 210 20% 98%;
+  
+  --primary: 263.4 70% 50.4%; /* Rich Violet */
+  --primary-foreground: 210 20% 98%;
+  --primary-glow: hsla(263, 70%, 50%, 0.25);
+  
+  --secondary: 215 27.9% 16.9%;
+  --secondary-foreground: 210 20% 98%;
+  
+  --muted: 215 27.9% 14%;
+  --muted-foreground: 217.9 10.6% 64.9%;
+  
+  --accent: 215 27.9% 18%;
+  --accent-foreground: 210 20% 98%;
+  
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 210 20% 98%;
+
+  --success: 142.1 70.6% 45.3%; /* Vibrant Emerald */
+  --warning: 37.9 90% 50%; /* Golden Amber */
+  --info: 198.6 88.7% 48.4%; /* Deep Sky Blue */
+  
+  --border: 224 20% 18%;
+  --border-focus: 263.4 70% 65%;
+  --input: 224 20% 14%;
+  
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  
+  --canvas-grid: radial-gradient(circle, hsla(224, 20%, 30%, 0.15) 1px, transparent 1px);
+}
+
+/* Base resets & styling */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: var(--font-sans);
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Custom Sleek Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: hsl(var(--background));
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: var(--radius-sm);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.5);
+}
+
+/* Utility Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 hsla(263, 70%, 50%, 0.4); }
+  50% { box-shadow: 0 0 15px 4px hsla(263, 70%, 50%, 0.2); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.glow-active {
+  animation: pulse-glow 2s infinite ease-in-out;
+}
+
+/* Glassmorphism Classes */
+.glass-header {
+  background: hsla(224, 25%, 8%, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.glass-panel {
+  background: hsla(224, 25%, 12%, 0.7);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid hsl(var(--border));
+}
+
+/* Presets for Table Colors */
+.table-theme-violet { --table-accent: 263.4 70% 50.4%; }
+.table-theme-emerald { --table-accent: 142.1 70.6% 45.3%; }
+.table-theme-rose { --table-accent: 346.8 77.2% 49.8%; }
+.table-theme-amber { --table-accent: 37.9 90% 50%; }
+.table-theme-blue { --table-accent: 217.2 91.2% 59.8%; }
+.table-theme-slate { --table-accent: 215.4 16.3% 46.9%; }
+
+/* Input and Form standard stylings */
+.input-field {
+  width: 100%;
+  padding: 0.625rem 0.875rem;
+  background-color: hsl(var(--input));
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius-md);
+  color: hsl(var(--foreground));
+  font-family: inherit;
+  font-size: 0.875rem;
+  transition: all 0.15s ease;
+}
+.input-field:focus {
+  outline: none;
+  border-color: hsl(var(--border-focus));
+  box-shadow: 0 0 0 3px var(--primary-glow);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: var(--radius-md);
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.btn-primary {
+  background-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
+.btn-primary:hover {
+  background-color: hsl(var(--primary) / 0.85);
+  box-shadow: 0 0 12px 2px var(--primary-glow);
+}
+.btn-secondary {
+  background-color: hsl(var(--secondary));
+  color: hsl(var(--secondary-foreground));
+  border: 1px solid hsl(var(--border));
+}
+.btn-secondary:hover {
+  background-color: hsl(var(--accent));
+}
+.btn-danger {
+  background-color: hsl(var(--destructive));
+  color: hsl(var(--destructive-foreground));
+}
+.btn-danger:hover {
+  background-color: hsl(var(--destructive) / 0.85);
+}
+
+/* SVG Line Animations */
+.svg-connection-path {
+  fill: none;
+  stroke: hsl(var(--muted-foreground) / 0.45);
+  stroke-width: 2px;
+  transition: stroke 0.2s, stroke-width 0.2s;
+  cursor: pointer;
+}
+.svg-connection-path:hover,
+.svg-connection-path.is-selected {
+  stroke: hsl(var(--primary));
+  stroke-width: 3.5px;
+  filter: drop-shadow(0 0 4px hsl(var(--primary) / 0.6));
+}
+
+/* Drag line visual */
+.svg-drag-line {
+  fill: none;
+  stroke: hsl(var(--warning));
+  stroke-width: 2px;
+  stroke-dasharray: 4 4;
+}
+
+/* Custom User Cursor Overlay */
+.collaborator-cursor {
+  position: absolute;
+  pointer-events: none;
+  z-index: 10000;
+  transition: transform 0.08s cubic-bezier(0.25, 1, 0.5, 1);
+  will-change: transform;
+}
+.collaborator-cursor-pointer {
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 14px solid var(--cursor-color);
+  transform: rotate(-35deg);
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
+}
+.collaborator-cursor-label {
+  position: absolute;
+  left: 12px;
+  top: 10px;
+  background-color: var(--cursor-color);
+  color: #000;
+  font-weight: 600;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
