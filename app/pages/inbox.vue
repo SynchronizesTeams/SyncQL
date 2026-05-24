@@ -164,6 +164,94 @@ const formatDate = (dateStr) => {
 </script>
 
 <style scoped>
+.loader-screen {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: hsl(var(--background));
+  gap: 1.25rem;
+}
+
+.spinner-ring {
+  width: 48px;
+  height: 48px;
+  border: 4px solid hsl(var(--border));
+  border-top-color: hsl(var(--primary));
+  border-radius: 50%;
+  animation: spin 1s infinite linear;
+}
+
+.loading-text {
+  font-size: 0.9rem;
+  color: hsl(var(--muted-foreground));
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.glass-header {
+  height: 68px;
+  backdrop-filter: blur(12px);
+  background-color: hsl(var(--background) / 0.8);
+  border-bottom: 1px solid hsl(var(--border) / 0.4);
+  display: flex;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.header-content {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.header-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.logo-box {
+  width: 36px;
+  height: 36px;
+  background-color: hsl(var(--primary) / 0.15);
+  border: 1px solid hsl(var(--primary) / 0.3);
+  color: hsl(var(--primary));
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.logo-svg {
+  width: 20px;
+  height: 20px;
+  color: hsl(var(--primary));
+}
+
+.logo-title {
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.header-user {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
 .inbox-container {
   display: flex;
   flex-direction: column;
