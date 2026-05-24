@@ -29,6 +29,13 @@
               <span class="user-email">{{ user.email }}</span>
             </div>
           </div>
+          <button class="btn btn-secondary inbox-header-btn" @click="navigateTo('/inbox')" title="Workspace Invitations">
+            <Mail class="btn-icon text-primary-glow" />
+            <span>Inbox</span>
+            <span v-if="pendingInvitesCount > 0" class="inbox-badge-count animate-pulse">
+              {{ pendingInvitesCount }}
+            </span>
+          </button>
           <button class="btn btn-secondary logout-btn" @click="logout">
             <LogOut class="btn-icon" />
             Sign Out
@@ -84,10 +91,14 @@
               v-for="member in workspaceMembers" 
               :key="member.id"
               class="member-item"
+              :class="{ 'is-pending': member.status === 'pending' }"
             >
               <img :src="member.avatar_url || '/logo.png'" class="member-avatar" alt="Avatar" />
               <div class="member-meta">
-                <span class="member-name">{{ member.name }}</span>
+                <div class="member-name-row">
+                  <span class="member-name">{{ member.name }}</span>
+                  <span v-if="member.status === 'pending'" class="member-pending-badge">Pending</span>
+                </div>
                 <span class="member-role">{{ member.role }}</span>
               </div>
             </div>
@@ -347,18 +358,37 @@
           <button class="modal-close-btn" @click="showInviteMemberModal = false">&times;</button>
         </div>
         
-        <form @submit.prevent="handleInviteMember" class="modal-form">
-          <div class="form-group">
+        <form @submit.prevent="handleInviteMember" class="modal-form" style="position: relative;">
+          <div class="form-group" style="position: relative;">
             <label for="member-username">Invited Username</label>
             <input 
               id="member-username" 
               v-model="inviteUsername" 
               type="text" 
-              placeholder="Enter developer username..." 
+              placeholder="Start typing developer name..." 
               class="input-field" 
+              autocomplete="off"
               required
+              @input="handleLiveSearch"
             />
-            <p class="form-hint">Type the developer name case-insensitively. They must have logged in at least once.</p>
+            
+            <!-- Live Autocomplete Search Results Dropdown -->
+            <div v-if="searchUsersList.length > 0" class="live-search-results-dropdown glass-panel">
+              <div 
+                v-for="u in searchUsersList" 
+                :key="u.id"
+                class="search-user-item"
+                @click="selectSearchUser(u)"
+              >
+                <img :src="u.avatar_url || '/logo.png'" class="search-user-avatar" alt="Avatar" />
+                <div class="search-user-info">
+                  <span class="search-user-name">{{ u.name }}</span>
+                  <span class="search-user-email">{{ u.email }}</span>
+                </div>
+              </div>
+            </div>
+
+            <p class="form-hint">Type the developer name. They will be auto-suggested above as you type.</p>
           </div>
 
           <!-- Alert cards inside form -->
@@ -393,7 +423,7 @@ import { ref, computed, onMounted } from 'vue';
 import { useAuth } from '~/composables/useAuth';
 import { 
   LogOut, Plus, Search, Trash2, Calendar, Database, 
-  ArrowRight, Sparkles 
+  ArrowRight, Sparkles, Mail
 } from 'lucide-vue-next';
 
 const { user, isLoading, fetchUser, logout } = useAuth();
@@ -416,6 +446,10 @@ const inviteUsername = ref('');
 const inviteError = ref('');
 const inviteSuccess = ref('');
 const workspaceLoading = ref(false);
+
+// Live autocomplete & notification states
+const pendingInvitesCount = ref(0);
+const searchUsersList = ref([]);
 
 const activeWorkspaceName = computed(() => {
   const activeWs = workspaces.value.find(w => w.id === activeWorkspaceId.value);
@@ -442,6 +476,7 @@ onMounted(async () => {
   } else {
     await loadWorkspaces();
     await loadDiagrams();
+    await loadPendingInvitesCount();
   }
 });
 
@@ -503,6 +538,40 @@ const handleCreateWorkspace = async () => {
   } finally {
     workspaceLoading.value = false;
   }
+};
+
+const loadPendingInvitesCount = async () => {
+  try {
+    const data = await $fetch('/api/workspaces/invitations');
+    pendingInvitesCount.value = data.invitations?.length || 0;
+  } catch (e) {
+    console.error('Failed to load pending invites count:', e);
+  }
+};
+
+let searchTimeout = null;
+const handleLiveSearch = () => {
+  if (searchTimeout) clearTimeout(searchTimeout);
+  const q = inviteUsername.value.trim();
+  if (q.length < 2) {
+    searchUsersList.value = [];
+    return;
+  }
+  searchTimeout = setTimeout(async () => {
+    try {
+      const data = await $fetch('/api/users/search', {
+        query: { q }
+      });
+      searchUsersList.value = data.users || [];
+    } catch (e) {
+      console.error('Live search failed:', e);
+    }
+  }, 250); // 250ms debounce
+};
+
+const selectSearchUser = (u) => {
+  inviteUsername.value = u.name;
+  searchUsersList.value = [];
 };
 
 const handleInviteMember = async () => {
@@ -1242,8 +1311,11 @@ const formatDate = (dateStr) => {
 .dashboard-main-layout {
   display: flex;
   gap: 1.5rem;
-  padding: 1.5rem 0;
+  padding: 2rem 1.5rem;
   flex: 1;
+  max-width: 1300px;
+  margin: 0 auto;
+  width: 100%;
 }
 
 /* Sidebar Workspace Panel */
@@ -1452,5 +1524,134 @@ const formatDate = (dateStr) => {
   background: rgba(16, 185, 129, 0.1);
   border: 1px solid rgba(16, 185, 129, 0.2);
   color: #34d399;
+}
+
+/* Position helper for headers and inputs */
+.position-relative {
+  position: relative;
+}
+
+/* Inbox Header Navigation Button & Pulsing Badge */
+.inbox-header-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.9rem;
+}
+
+.inbox-badge-count {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background: hsl(var(--primary));
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 10px hsl(var(--primary) / 0.8);
+  border: 1px solid hsl(var(--background));
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 10px hsl(var(--primary) / 0.8);
+  }
+  50% {
+    transform: scale(1.15);
+    box-shadow: 0 0 16px hsl(var(--primary) / 1);
+  }
+}
+
+.animate-pulse {
+  animation: pulse 2s infinite ease-in-out;
+}
+
+/* Live Autocomplete Suggestions dropdown container */
+.live-search-results-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: hsl(var(--background) / 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  margin-top: 0.35rem;
+  max-height: 200px;
+  overflow-y: auto;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(10px);
+}
+
+.search-user-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.8rem;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.search-user-item:last-child {
+  border-bottom: none;
+}
+
+.search-user-item:hover {
+  background: hsl(var(--primary) / 0.1);
+}
+
+.search-user-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.search-user-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+}
+
+.search-user-name {
+  font-size: 0.775rem;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+}
+
+.search-user-email {
+  font-size: 0.65rem;
+  color: hsl(var(--muted-foreground));
+}
+
+/* Collaborators Pending layout configurations */
+.member-item.is-pending {
+  opacity: 0.6;
+}
+
+.member-name-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.member-pending-badge {
+  font-size: 0.55rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: hsl(var(--primary));
+  background: hsl(var(--primary) / 0.12);
+  padding: 0.05rem 0.3rem;
+  border-radius: 4px;
+  border: 1px solid hsl(var(--primary) / 0.2);
 }
 </style>

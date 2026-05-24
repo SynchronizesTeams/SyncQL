@@ -199,6 +199,7 @@ function initializeSchema() {
       workspace_id TEXT NOT NULL,
       user_id TEXT NOT NULL,
       role TEXT NOT NULL DEFAULT 'member',
+      status TEXT NOT NULL DEFAULT 'accepted',
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       PRIMARY KEY (workspace_id, user_id),
       FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE,
@@ -209,6 +210,13 @@ function initializeSchema() {
   // Migrate diagrams table to have workspace_id TEXT column
   try {
     exec('ALTER TABLE diagrams ADD COLUMN workspace_id TEXT;');
+  } catch (e) {
+    // Column already exists
+  }
+
+  // Migrate workspace_members table to have status column
+  try {
+    exec("ALTER TABLE workspace_members ADD COLUMN status TEXT DEFAULT 'accepted';");
   } catch (e) {
     // Column already exists
   }

@@ -18,7 +18,7 @@ export default defineEventHandler(async (event) => {
 
   // 1. Verify that current user is member of the workspace (and has permission, e.g. role is owner or member)
   const checkMember = queryOne(
-    `SELECT * FROM workspace_members WHERE workspace_id = ? AND user_id = ?`,
+    `SELECT * FROM workspace_members WHERE workspace_id = ? AND user_id = ? AND status = 'accepted'`,
     [workspaceId, user.userId]
   );
   const checkOwner = queryOne(
@@ -40,24 +40,25 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, statusMessage: `User "${inviteeUsername}" not found. Ask them to sign in first.` });
   }
 
-  // 3. Check if already a member
+  // 3. Check if already a member/invited
   const alreadyMember = queryOne(
     `SELECT * FROM workspace_members WHERE workspace_id = ? AND user_id = ?`,
     [workspaceId, invitee.id]
   );
 
   if (alreadyMember) {
-    throw createError({ statusCode: 400, statusMessage: `User "${invitee.name}" is already a member of this workspace.` });
+    const statusMsg = alreadyMember.status === 'pending' ? 'already invited (pending acceptance)' : 'already a active member';
+    throw createError({ statusCode: 400, statusMessage: `User "${invitee.name}" is ${statusMsg} of this workspace.` });
   }
 
-  // 4. Add member
+  // 4. Add member with 'pending' status
   exec(
-    `INSERT INTO workspace_members (workspace_id, user_id, role) VALUES (?, ?, ?)`,
-    [workspaceId, invitee.id, 'member']
+    `INSERT INTO workspace_members (workspace_id, user_id, role, status) VALUES (?, ?, ?, ?)`,
+    [workspaceId, invitee.id, 'member', 'pending']
   );
 
   return {
     success: true,
-    message: `Successfully invited "${invitee.name}" to the workspace!`
+    message: `Successfully invited "${invitee.name}"! They can accept from their Inbox.`
   };
 });

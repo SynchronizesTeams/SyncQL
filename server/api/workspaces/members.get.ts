@@ -16,7 +16,8 @@ export default defineEventHandler((event) => {
 
   const members = query(
     `SELECT u.id, u.name, u.email, u.avatar_url, 
-            CASE WHEN w.owner_id = u.id THEN 'owner' ELSE wm.role END as role
+            CASE WHEN w.owner_id = u.id THEN 'owner' ELSE wm.role END as role,
+            wm.status
      FROM workspace_members wm
      JOIN users u ON wm.user_id = u.id
      JOIN workspaces w ON wm.workspace_id = w.id
