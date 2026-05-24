@@ -168,56 +168,89 @@
           @start-relation-drag="onStartRelationDrag"
         />
 
-        <!-- Sticky Notes Layer -->
+        <!-- Sticky Notes / Comments Bubble Layer -->
         <div 
           v-for="n in notes" 
           :key="n.id"
-          class="sticky-note-card animate-fade-in"
-          :class="[n.color, { 'is-focused': selectedNoteId === n.id }]"
+          class="note-bubble-wrapper"
           :style="{
-            transform: `translate(${n.x}px, ${n.y}px)`,
-            width: n.width + 'px',
-            height: n.height + 'px'
+            transform: `translate(${n.x}px, ${n.y}px)`
           }"
-          @mousedown.stop="onNoteMouseDown($event, n)"
         >
-          <!-- Note Header / Drag Handle & Actions -->
-          <div class="note-header drag-handle">
-            <!-- Color Presets selection dot controls -->
-            <div class="note-colors" v-if="myRole !== 'viewer'">
-              <span 
-                v-for="color in ['note-yellow', 'note-pink', 'note-blue', 'note-green']"
-                :key="color"
-                class="color-dot"
-                :class="[color, { 'is-active': n.color === color }]"
-                @mousedown.stop
-                @click="updateNoteColor(n, color)"
-              ></span>
-            </div>
-            <!-- Delete action button -->
-            <button v-if="myRole !== 'viewer'" class="note-delete-btn" @mousedown.stop @click="deleteNote(n.id)">
-              <Trash2 class="note-trash-icon" />
-            </button>
-          </div>
-          
-          <!-- Sticky Note Content Editable Area -->
-          <div class="note-body">
-            <textarea 
-              v-model="n.content"
-              class="note-textarea"
-              placeholder="Type note..."
-              :readonly="myRole === 'viewer'"
-              @input="onNoteInput(n)"
-              @mousedown.stop
-            ></textarea>
-          </div>
-          
-          <!-- Sticky Note Drag Resize Handle -->
+          <!-- The Glowing Pulse Bubble Badge -->
           <div 
-            v-if="myRole !== 'viewer'"
-            class="note-resize-handle"
-            @mousedown.stop="onNoteResizeMouseDown($event, n)"
-          ></div>
+            class="note-bubble-trigger animate-bounce-subtle"
+            :class="[n.color, { 'is-active': selectedNoteId === n.id || hoveredNoteId === n.id }]"
+            @mousedown.stop="onNoteMouseDown($event, n)"
+            @mouseenter="hoveredNoteId = n.id"
+            @mouseleave="hoveredNoteId = null"
+          >
+            <!-- Avatar picture of note creator -->
+            <img 
+              v-if="n.creator_avatar" 
+              :src="n.creator_avatar" 
+              class="note-bubble-avatar" 
+              alt="Avatar"
+            />
+            <!-- Fallback initials badge if avatar isn't present -->
+            <div v-else class="note-bubble-avatar-fallback">
+              {{ n.creator_name ? n.creator_name.charAt(0).toUpperCase() : 'N' }}
+            </div>
+            
+            <!-- Small color-coded category indicator dot -->
+            <span class="note-bubble-indicator"></span>
+          </div>
+
+          <!-- Popover Content Card (shows on Click OR Hover) -->
+          <div 
+            v-if="selectedNoteId === n.id || hoveredNoteId === n.id"
+            class="note-bubble-popover glass-panel"
+            :class="n.color"
+            @mousedown.stop
+          >
+            <!-- Popover Header -->
+            <div class="popover-header">
+              <div class="popover-creator-info">
+                <span class="popover-creator-name">{{ n.creator_name || 'Anonymous' }}</span>
+                <span class="popover-time">commented</span>
+              </div>
+              <button 
+                v-if="myRole !== 'viewer' && n.user_id === user.userId" 
+                class="popover-delete-btn" 
+                @click="deleteNote(n.id)"
+                title="Delete note"
+              >
+                <Trash2 class="popover-trash-icon" />
+              </button>
+            </div>
+
+            <!-- Popover Content body -->
+            <div class="popover-body">
+              <textarea 
+                v-model="n.content"
+                class="popover-textarea"
+                placeholder="Write a comment..."
+                :readonly="myRole === 'viewer' || n.user_id !== user.userId"
+                @input="onNoteInput(n)"
+              ></textarea>
+            </div>
+
+            <!-- Popover controls / color palettes (visible to author) -->
+            <div 
+              v-if="myRole !== 'viewer' && n.user_id === user.userId" 
+              class="popover-footer"
+            >
+              <div class="popover-colors">
+                <span 
+                  v-for="color in ['table-theme-violet', 'table-theme-emerald', 'table-theme-rose', 'table-theme-amber', 'table-theme-blue']"
+                  :key="color"
+                  class="popover-color-dot"
+                  :class="[color, { 'is-active': n.color === color }]"
+                  @click="updateNoteColor(n, color)"
+                ></span>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Floating Collaborators smooth cursors -->
@@ -527,6 +560,7 @@ const handleContextMenuAddNote = () => {
 // Sticky Notes States
 const notes = ref([]);
 const selectedNoteId = ref(null);
+const hoveredNoteId = ref(null);
 
 // Note dragging states
 const activeNoteDrag = ref(null);
@@ -635,12 +669,15 @@ const createStickyNoteAt = (x, y) => {
   const newNote = {
     id: crypto.randomUUID(),
     diagram_id: diagram.value.id,
+    user_id: user.value.userId,
+    creator_name: user.value.name,
+    creator_avatar: user.value.avatarUrl,
     content: '',
-    color: 'note-yellow',
+    color: 'table-theme-violet',
     x,
     y,
-    width: 200,
-    height: 150
+    width: 250,
+    height: 120
   };
   
   notes.value.push(newNote);
@@ -978,6 +1015,7 @@ const deselectAll = () => {
   selectedTableId.value = '';
   selectedColumnId.value = '';
   selectedRelationId.value = '';
+  selectedNoteId.value = null;
 };
 
 // Navigation layout helpers
@@ -1504,142 +1542,264 @@ const denyEditAccess = (req) => {
   box-shadow: 0 0 12px rgba(255, 74, 90, 0.4) !important;
 }
 
-/* Sticky Note Card styles */
-.sticky-note-card {
+/* Comment Bubble Wrapper styling */
+.note-bubble-wrapper {
   position: absolute;
-  border-radius: 8px;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
-  display: flex;
-  flex-direction: column;
-  padding: 0.5rem;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  cursor: grab;
-  z-index: 50;
-  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  z-index: 1000;
 }
 
-.sticky-note-card:active {
+/* Comment Bubble Trigger / Gelembung */
+.note-bubble-trigger {
+  position: absolute;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  padding: 2.5px;
+  background: hsla(224, 25%, 12%, 0.95);
+  border: 2px solid #a855f7; /* Default fallback */
+  cursor: grab;
+  pointer-events: auto;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.note-bubble-trigger:active {
   cursor: grabbing;
 }
 
-.sticky-note-card.is-focused {
-  border-color: hsl(var(--primary));
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 10px hsl(var(--primary) / 0.4);
-  z-index: 100;
+.note-bubble-trigger:hover,
+.note-bubble-trigger.is-active {
+  transform: scale(1.18) translateY(-3px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.5), 0 0 12px var(--theme-color-glow);
 }
 
-/* Color Presets styles */
-.note-yellow {
-  background: linear-gradient(135deg, #fef08a, #fde047);
-  color: #1e293b;
+/* Color theme mappings for triggers to match cards */
+.note-bubble-trigger.table-theme-violet {
+  border-color: #a855f7;
+  --theme-color-glow: rgba(168, 85, 247, 0.6);
 }
-.note-pink {
-  background: linear-gradient(135deg, #fbcfe8, #f472b6);
-  color: #1e293b;
+.note-bubble-trigger.table-theme-emerald {
+  border-color: #10b981;
+  --theme-color-glow: rgba(16, 185, 129, 0.6);
 }
-.note-blue {
-  background: linear-gradient(135deg, #bfdbfe, #60a5fa);
-  color: #1e293b;
+.note-bubble-trigger.table-theme-rose {
+  border-color: #f43f5e;
+  --theme-color-glow: rgba(244, 63, 94, 0.6);
 }
-.note-green {
-  background: linear-gradient(135deg, #bbf7d0, #4ade80);
-  color: #1e293b;
+.note-bubble-trigger.table-theme-amber {
+  border-color: #f59e0b;
+  --theme-color-glow: rgba(245, 158, 11, 0.6);
+}
+.note-bubble-trigger.table-theme-blue {
+  border-color: #3b82f6;
+  --theme-color-glow: rgba(59, 130, 246, 0.6);
 }
 
-/* Note Header */
-.note-header {
+/* Avatar element inside bubble */
+.note-bubble-avatar {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  background-color: #1e293b;
+}
+
+.note-bubble-avatar-fallback {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: hsl(var(--primary) / 0.2);
+  color: hsl(var(--primary));
+  font-weight: 700;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Small indicator dot on trigger bubble */
+.note-bubble-indicator {
+  position: absolute;
+  bottom: 0px;
+  right: 0px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid hsla(224, 25%, 12%, 1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+.table-theme-violet .note-bubble-indicator { background-color: #a855f7; }
+.table-theme-emerald .note-bubble-indicator { background-color: #10b981; }
+.table-theme-rose .note-bubble-indicator { background-color: #f43f5e; }
+.table-theme-amber .note-bubble-indicator { background-color: #f59e0b; }
+.table-theme-blue .note-bubble-indicator { background-color: #3b82f6; }
+
+/* Popover Content Card */
+.note-bubble-popover {
+  position: absolute;
+  left: 54px;
+  top: -12px;
+  width: 250px;
+  background: hsla(224, 25%, 12%, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 0.65rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 1px 1px rgba(255, 255, 255, 0.05);
+  z-index: 2000;
+  pointer-events: auto;
+  backdrop-filter: blur(12px);
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  animation: popover-slide-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transform-origin: left center;
+}
+
+/* Color theme mappings for popover border glow */
+.note-bubble-popover.table-theme-violet { border-color: rgba(168, 85, 247, 0.4); }
+.note-bubble-popover.table-theme-emerald { border-color: rgba(16, 185, 129, 0.4); }
+.note-bubble-popover.table-theme-rose { border-color: rgba(244, 63, 94, 0.4); }
+.note-bubble-popover.table-theme-amber { border-color: rgba(245, 158, 11, 0.4); }
+.note-bubble-popover.table-theme-blue { border-color: rgba(59, 130, 246, 0.4); }
+
+/* Popover Header */
+.popover-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  height: 24px;
-  margin-bottom: 0.25rem;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
-  padding-bottom: 0.25rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding-bottom: 0.35rem;
 }
 
-.note-colors {
+.popover-creator-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+  text-align: left;
+}
+
+.popover-creator-name {
+  font-size: 0.775rem;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+}
+
+.popover-time {
+  font-size: 0.65rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.popover-delete-btn {
+  background: transparent;
+  border: none;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  padding: 3px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.popover-delete-btn:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.popover-trash-icon {
+  width: 13px;
+  height: 13px;
+}
+
+/* Popover Body / Input */
+.popover-body {
+  display: flex;
+}
+
+.popover-textarea {
+  width: 100%;
+  height: 60px;
+  background: transparent;
+  border: none;
+  resize: none;
+  font-family: inherit;
+  font-size: 0.775rem;
+  line-height: 1.4;
+  color: hsl(var(--foreground));
+  padding: 0.2rem;
+  font-weight: 450;
+  outline: none;
+}
+
+.popover-textarea::placeholder {
+  color: hsl(var(--muted-foreground) / 0.5);
+}
+
+/* Popover Footer */
+.popover-footer {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding-top: 0.35rem;
+  display: flex;
+  justify-content: flex-start;
+}
+
+.popover-colors {
   display: flex;
   gap: 0.35rem;
   align-items: center;
 }
 
-.color-dot {
-  width: 12px;
-  height: 12px;
+.popover-color-dot {
+  width: 11px;
+  height: 11px;
   border-radius: 50%;
   cursor: pointer;
-  border: 1px solid rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   transition: transform 0.15s ease;
 }
 
-.color-dot:hover {
+.popover-color-dot.table-theme-violet { background-color: #a855f7; }
+.popover-color-dot.table-theme-emerald { background-color: #10b981; }
+.popover-color-dot.table-theme-rose { background-color: #f43f5e; }
+.popover-color-dot.table-theme-amber { background-color: #f59e0b; }
+.popover-color-dot.table-theme-blue { background-color: #3b82f6; }
+
+.popover-color-dot:hover {
   transform: scale(1.2);
 }
 
-.color-dot.is-active {
+.popover-color-dot.is-active {
   transform: scale(1.2);
-  box-shadow: 0 0 0 1.5px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 0 0 1.5px hsl(var(--background)), 0 0 0 2.5px rgba(255, 255, 255, 0.4);
 }
 
-/* Delete Button */
-.note-delete-btn {
-  background: transparent;
-  border: none;
-  color: rgba(0, 0, 0, 0.45);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2px;
-  border-radius: 4px;
-  transition: all 0.15s ease;
+/* Subtle bounce anim */
+@keyframes bounce-subtle {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
 }
 
-.note-delete-btn:hover {
-  color: #dc2626;
-  background-color: rgba(0, 0, 0, 0.05);
+.animate-bounce-subtle {
+  animation: bounce-subtle 4s ease-in-out infinite;
 }
 
-.note-trash-icon {
-  width: 14px;
-  height: 14px;
-}
-
-/* Note Body / Textarea */
-.note-body {
-  flex: 1;
-  display: flex;
-}
-
-.note-textarea {
-  width: 100%;
-  height: 100%;
-  background: transparent;
-  border: none;
-  resize: none;
-  font-family: inherit;
-  font-size: 0.825rem;
-  line-height: 1.4;
-  color: inherit;
-  padding: 0.25rem;
-  font-weight: 500;
-  outline: none;
-}
-
-.note-textarea::placeholder {
-  color: rgba(0, 0, 0, 0.35);
-}
-
-/* Resize Handle */
-.note-resize-handle {
-  position: absolute;
-  bottom: 0;
-  right: 0;
-  width: 12px;
-  height: 12px;
-  cursor: se-resize;
-  background: linear-gradient(135deg, transparent 50%, rgba(0, 0, 0, 0.3) 50%);
-  border-bottom-right-radius: 8px;
+/* Popover slide in anim */
+@keyframes popover-slide-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateX(0);
+  }
 }
 
 /* Custom Context Menu styling */
