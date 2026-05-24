@@ -258,7 +258,6 @@
           </div>
         </div>
       </div>
-      </div>
     </div>
 
     <!-- 3. Relation Inspector -->
