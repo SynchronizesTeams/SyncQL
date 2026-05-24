@@ -204,6 +204,7 @@
       @add-column="handleColumnCreate"
       @select-table="selectElement('table', $event)"
       @select-column="selectElement('column', $event)"
+      @add-relation="handleRelationCreate"
     />
 
     <!-- Right Sidebar Toggle Button -->
@@ -990,6 +991,16 @@ const handleRelationDelete = (relId) => {
   sendWSEvent({
     type: 'relation-delete',
     relationId: relId
+  });
+};
+
+const handleRelationCreate = (newRel) => {
+  relations.value.push(newRel);
+  selectElement('relation', newRel.id);
+  
+  sendWSEvent({
+    type: 'relation-create',
+    relation: newRel
   });
 };
 
