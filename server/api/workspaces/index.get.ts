@@ -1,6 +1,7 @@
 import { defineEventHandler, createError } from 'h3';
-import { query, exec } from '../../utils/db';
+import { query, exec, queryOne } from '../../utils/db';
 import { getUserFromEvent } from '../../utils/jwt';
+import crypto from 'crypto';
 
 export default defineEventHandler((event) => {
   const user = getUserFromEvent(event);
@@ -12,10 +13,11 @@ export default defineEventHandler((event) => {
   }
 
   let workspaces = query(
-    `SELECT w.*, 
+    `SELECT w.*, u.name as owner_name,
             (SELECT COUNT(*) FROM workspace_members WHERE workspace_id = w.id AND status = 'accepted') as member_count,
             (SELECT COUNT(*) FROM diagrams WHERE workspace_id = w.id) as diagram_count
      FROM workspaces w 
+     JOIN users u ON w.owner_id = u.id
      LEFT JOIN workspace_members wm ON w.id = wm.workspace_id 
      WHERE w.owner_id = ? OR (wm.user_id = ? AND wm.status = 'accepted') 
      GROUP BY w.id`,
@@ -36,8 +38,9 @@ export default defineEventHandler((event) => {
     
     // Re-fetch
     workspaces = query(
-      `SELECT w.*, 1 as member_count, 0 as diagram_count
+      `SELECT w.*, u.name as owner_name, 1 as member_count, 0 as diagram_count
        FROM workspaces w 
+       JOIN users u ON w.owner_id = u.id
        WHERE w.id = ?`,
       [personalId]
     );

@@ -220,4 +220,21 @@ function initializeSchema() {
   } catch (e) {
     // Column already exists
   }
+
+  // Seed Demo Users for visual testing autocomplete
+  const demoUsers = [
+    { id: 'dev-adeleeyyyy-id', email: 'adele@synchronizeteams.com', name: 'Adeleeyyyy', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&h=150&q=80' },
+    { id: 'dev-pro-id', email: 'pro@synchronizeteams.com', name: 'DevPro', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&h=150&q=80' },
+    { id: 'dev-collab-id', email: 'collab@synchronizeteams.com', name: 'Collaborator', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&h=150&q=80' }
+  ];
+
+  for (const u of demoUsers) {
+    const exists = queryOne('SELECT * FROM users WHERE id = ?', [u.id]);
+    if (!exists) {
+      exec(
+        'INSERT INTO users (id, email, name, avatar_url) VALUES (?, ?, ?, ?)',
+        [u.id, u.email, u.name, u.avatar]
+      );
+    }
+  }
 }
