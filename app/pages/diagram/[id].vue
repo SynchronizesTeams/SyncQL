@@ -168,6 +168,58 @@
           @start-relation-drag="onStartRelationDrag"
         />
 
+        <!-- Sticky Notes Layer -->
+        <div 
+          v-for="n in notes" 
+          :key="n.id"
+          class="sticky-note-card animate-fade-in"
+          :class="[n.color, { 'is-focused': selectedNoteId === n.id }]"
+          :style="{
+            transform: `translate(${n.x}px, ${n.y}px)`,
+            width: n.width + 'px',
+            height: n.height + 'px'
+          }"
+          @mousedown.stop="onNoteMouseDown($event, n)"
+        >
+          <!-- Note Header / Drag Handle & Actions -->
+          <div class="note-header drag-handle">
+            <!-- Color Presets selection dot controls -->
+            <div class="note-colors" v-if="myRole !== 'viewer'">
+              <span 
+                v-for="color in ['note-yellow', 'note-pink', 'note-blue', 'note-green']"
+                :key="color"
+                class="color-dot"
+                :class="[color, { 'is-active': n.color === color }]"
+                @mousedown.stop
+                @click="updateNoteColor(n, color)"
+              ></span>
+            </div>
+            <!-- Delete action button -->
+            <button v-if="myRole !== 'viewer'" class="note-delete-btn" @mousedown.stop @click="deleteNote(n.id)">
+              <Trash2 class="note-trash-icon" />
+            </button>
+          </div>
+          
+          <!-- Sticky Note Content Editable Area -->
+          <div class="note-body">
+            <textarea 
+              v-model="n.content"
+              class="note-textarea"
+              placeholder="Type note..."
+              :readonly="myRole === 'viewer'"
+              @input="onNoteInput(n)"
+              @mousedown.stop
+            ></textarea>
+          </div>
+          
+          <!-- Sticky Note Drag Resize Handle -->
+          <div 
+            v-if="myRole !== 'viewer'"
+            class="note-resize-handle"
+            @mousedown.stop="onNoteResizeMouseDown($event, n)"
+          ></div>
+        </div>
+
         <!-- Floating Collaborators smooth cursors -->
         <div 
           v-for="peer in remoteCursors" 
@@ -192,6 +244,9 @@
         <div v-if="contextMenu.type === 'canvas'">
           <button class="context-menu-item" @click="handleContextMenuAddTable">
             <Plus class="context-menu-icon" /> Add Table Here
+          </button>
+          <button class="context-menu-item" @click="handleContextMenuAddNote">
+            <Plus class="context-menu-icon" /> Add Sticky Note Here
           </button>
         </div>
         <div v-else-if="contextMenu.type === 'table'">
@@ -323,7 +378,7 @@ import { useRoute } from 'vue-router';
 import { useAuth } from '~/composables/useAuth';
 import { 
   ArrowLeft, Share2, Plus, Download, 
-  Maximize2, ChevronLeft, ChevronRight
+  Maximize2, ChevronLeft, ChevronRight, Trash2
 } from 'lucide-vue-next';
 
 // Sidebar toggle collapsed states
@@ -463,6 +518,171 @@ const handleContextMenuDeleteTable = () => {
   closeContextMenu();
 };
 
+const handleContextMenuAddNote = () => {
+  const { x, y } = contextMenu.value.canvasCoords;
+  createStickyNoteAt(x, y);
+  closeContextMenu();
+};
+
+// Sticky Notes States
+const notes = ref([]);
+const selectedNoteId = ref(null);
+
+// Note dragging states
+const activeNoteDrag = ref(null);
+// Note resizing states
+const activeNoteResize = ref(null);
+
+// Drag notes handlers
+const onNoteMouseDown = (e, note) => {
+  if (myRole.value === 'viewer') return;
+  selectedNoteId.value = note.id;
+  deselectAll(); // Deselect tables / columns
+  
+  activeNoteDrag.value = {
+    note,
+    startX: e.clientX,
+    startY: e.clientY,
+    originalX: note.x,
+    originalY: note.y
+  };
+  
+  window.addEventListener('mousemove', onNoteMouseMove);
+  window.addEventListener('mouseup', onNoteMouseUp);
+};
+
+const onNoteMouseMove = (e) => {
+  if (!activeNoteDrag.value) return;
+  
+  const { note, startX, startY, originalX, originalY } = activeNoteDrag.value;
+  
+  // Calculate drag offset scaled by current canvas scale/zoom factor
+  const dx = (e.clientX - startX) / scale.value;
+  const dy = (e.clientY - startY) / scale.value;
+  
+  note.x = Math.round(originalX + dx);
+  note.y = Math.round(originalY + dy);
+  
+  // Broadcast move live
+  sendWSEvent({
+    type: 'note-update',
+    note
+  });
+};
+
+const onNoteMouseUp = () => {
+  if (activeNoteDrag.value) {
+    // Save to server
+    sendWSEvent({
+      type: 'note-update',
+      note: activeNoteDrag.value.note
+    });
+    activeNoteDrag.value = null;
+  }
+  window.removeEventListener('mousemove', onNoteMouseMove);
+  window.removeEventListener('mouseup', onNoteMouseUp);
+};
+
+// Resize notes handlers
+const onNoteResizeMouseDown = (e, note) => {
+  if (myRole.value === 'viewer') return;
+  e.preventDefault();
+  
+  activeNoteResize.value = {
+    note,
+    startX: e.clientX,
+    startY: e.clientY,
+    originalWidth: note.width,
+    originalHeight: note.height
+  };
+  
+  window.addEventListener('mousemove', onNoteResizeMouseMove);
+  window.addEventListener('mouseup', onNoteResizeMouseUp);
+};
+
+const onNoteResizeMouseMove = (e) => {
+  if (!activeNoteResize.value) return;
+  
+  const { note, startX, startY, originalWidth, originalHeight } = activeNoteResize.value;
+  
+  const dx = (e.clientX - startX) / scale.value;
+  const dy = (e.clientY - startY) / scale.value;
+  
+  note.width = Math.max(120, Math.round(originalWidth + dx));
+  note.height = Math.max(100, Math.round(originalHeight + dy));
+  
+  // Broadcast resize live
+  sendWSEvent({
+    type: 'note-update',
+    note
+  });
+};
+
+const onNoteResizeMouseUp = () => {
+  if (activeNoteResize.value) {
+    sendWSEvent({
+      type: 'note-update',
+      note: activeNoteResize.value.note
+    });
+    activeNoteResize.value = null;
+  }
+  window.removeEventListener('mousemove', onNoteResizeMouseMove);
+  window.removeEventListener('mouseup', onNoteResizeMouseUp);
+};
+
+// CRUD sticky notes functions
+const createStickyNoteAt = (x, y) => {
+  const newNote = {
+    id: crypto.randomUUID(),
+    diagram_id: diagram.value.id,
+    content: '',
+    color: 'note-yellow',
+    x,
+    y,
+    width: 200,
+    height: 150
+  };
+  
+  notes.value.push(newNote);
+  selectedNoteId.value = newNote.id;
+  
+  sendWSEvent({
+    type: 'note-create',
+    note: newNote
+  });
+};
+
+const updateNoteColor = (note, color) => {
+  note.color = color;
+  sendWSEvent({
+    type: 'note-update',
+    note
+  });
+};
+
+// Debounce note textarea typing content updates to avoid spamming sockets
+let noteInputTimeout = null;
+const onNoteInput = (note) => {
+  if (noteInputTimeout) clearTimeout(noteInputTimeout);
+  
+  noteInputTimeout = setTimeout(() => {
+    sendWSEvent({
+      type: 'note-update',
+      note
+    });
+  }, 300);
+};
+
+const deleteNote = (noteId) => {
+  notes.value = notes.value.filter(n => n.id !== noteId);
+  if (selectedNoteId.value === noteId) selectedNoteId.value = null;
+  
+  sendWSEvent({
+    type: 'note-delete',
+    noteId
+  });
+};
+
 const createNewTableAt = (x, y) => {
   deselectAll();
   
@@ -526,6 +746,7 @@ const loadDiagramSchema = async () => {
     tables.value = data.tables || [];
     columns.value = data.columns || [];
     relations.value = data.relations || [];
+    notes.value = data.notes || [];
   } catch (e) {
     console.error('Failed to load diagram schema:', e);
     navigateTo('/');
@@ -650,6 +871,30 @@ const connectWebSocket = () => {
       case 'diagram-updated':
         diagram.value.name = msg.name;
         diagram.value.dialect = msg.dialect;
+        break;
+
+      case 'note-created':
+        notes.value.push(msg.note);
+        break;
+        
+      case 'note-updated':
+        const noteIdx = notes.value.findIndex(n => n.id === msg.note.id);
+        if (noteIdx !== -1) {
+          const existing = notes.value[noteIdx];
+          existing.x = msg.note.x;
+          existing.y = msg.note.y;
+          existing.width = msg.note.width;
+          existing.height = msg.note.height;
+          existing.color = msg.note.color;
+          if (selectedNoteId.value !== msg.note.id) {
+            existing.content = msg.note.content;
+          }
+        }
+        break;
+        
+      case 'note-deleted':
+        notes.value = notes.value.filter(n => n.id !== msg.noteId);
+        if (selectedNoteId.value === msg.noteId) selectedNoteId.value = null;
         break;
         
       case 'edit-access-requested':
@@ -1257,6 +1502,144 @@ const denyEditAccess = (req) => {
   background-color: #ff2b3e !important;
   border-color: #ff2b3e !important;
   box-shadow: 0 0 12px rgba(255, 74, 90, 0.4) !important;
+}
+
+/* Sticky Note Card styles */
+.sticky-note-card {
+  position: absolute;
+  border-radius: 8px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  padding: 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  cursor: grab;
+  z-index: 50;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.sticky-note-card:active {
+  cursor: grabbing;
+}
+
+.sticky-note-card.is-focused {
+  border-color: hsl(var(--primary));
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 10px hsl(var(--primary) / 0.4);
+  z-index: 100;
+}
+
+/* Color Presets styles */
+.note-yellow {
+  background: linear-gradient(135deg, #fef08a, #fde047);
+  color: #1e293b;
+}
+.note-pink {
+  background: linear-gradient(135deg, #fbcfe8, #f472b6);
+  color: #1e293b;
+}
+.note-blue {
+  background: linear-gradient(135deg, #bfdbfe, #60a5fa);
+  color: #1e293b;
+}
+.note-green {
+  background: linear-gradient(135deg, #bbf7d0, #4ade80);
+  color: #1e293b;
+}
+
+/* Note Header */
+.note-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 24px;
+  margin-bottom: 0.25rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  padding-bottom: 0.25rem;
+}
+
+.note-colors {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.color-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  transition: transform 0.15s ease;
+}
+
+.color-dot:hover {
+  transform: scale(1.2);
+}
+
+.color-dot.is-active {
+  transform: scale(1.2);
+  box-shadow: 0 0 0 1.5px rgba(0, 0, 0, 0.4);
+}
+
+/* Delete Button */
+.note-delete-btn {
+  background: transparent;
+  border: none;
+  color: rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+
+.note-delete-btn:hover {
+  color: #dc2626;
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.note-trash-icon {
+  width: 14px;
+  height: 14px;
+}
+
+/* Note Body / Textarea */
+.note-body {
+  flex: 1;
+  display: flex;
+}
+
+.note-textarea {
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  border: none;
+  resize: none;
+  font-family: inherit;
+  font-size: 0.825rem;
+  line-height: 1.4;
+  color: inherit;
+  padding: 0.25rem;
+  font-weight: 500;
+  outline: none;
+}
+
+.note-textarea::placeholder {
+  color: rgba(0, 0, 0, 0.35);
+}
+
+/* Resize Handle */
+.note-resize-handle {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 12px;
+  height: 12px;
+  cursor: se-resize;
+  background: linear-gradient(135deg, transparent 50%, rgba(0, 0, 0, 0.3) 50%);
+  border-bottom-right-radius: 8px;
 }
 
 /* Custom Context Menu styling */

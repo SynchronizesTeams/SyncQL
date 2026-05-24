@@ -157,8 +157,25 @@ function initializeSchema() {
     );
   `);
 
-  // 6. Indexing for speed
+  // 6. Notes Table
+  exec(`
+    CREATE TABLE IF NOT EXISTS notes (
+      id TEXT PRIMARY KEY,
+      diagram_id TEXT NOT NULL,
+      content TEXT NOT NULL DEFAULT '',
+      color TEXT NOT NULL DEFAULT 'note-yellow',
+      x INTEGER NOT NULL DEFAULT 100,
+      y INTEGER NOT NULL DEFAULT 100,
+      width INTEGER NOT NULL DEFAULT 200,
+      height INTEGER NOT NULL DEFAULT 150,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (diagram_id) REFERENCES diagrams(id) ON DELETE CASCADE
+    );
+  `);
+
+  // 7. Indexing for speed
   exec(`CREATE INDEX IF NOT EXISTS idx_tables_diagram ON tables(diagram_id);`);
   exec(`CREATE INDEX IF NOT EXISTS idx_columns_table ON columns(table_id);`);
   exec(`CREATE INDEX IF NOT EXISTS idx_relations_diagram ON relations(diagram_id);`);
+  exec(`CREATE INDEX IF NOT EXISTS idx_notes_diagram ON notes(diagram_id);`);
 }
