@@ -260,11 +260,12 @@ export default defineWebSocketHandler({
 
         case 'note-create':
           exec(`
-            INSERT INTO notes (id, diagram_id, content, color, x, y, width, height)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO notes (id, diagram_id, user_id, creator_name, creator_avatar, content, color, x, y, width, height)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `, [
-            data.note.id, diagramId, data.note.content || '', data.note.color || 'note-yellow',
-            data.note.x, data.note.y, data.note.width || 200, data.note.height || 150
+            data.note.id, diagramId, data.note.user_id, data.note.creator_name, data.note.creator_avatar,
+            data.note.content || '', data.note.color || 'table-theme-violet',
+            data.note.x, data.note.y, data.note.width || 250, data.note.height || 120
           ]);
           peer.publish(diagramId, JSON.stringify({
             type: 'note-created',

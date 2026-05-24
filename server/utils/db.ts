@@ -158,16 +158,20 @@ function initializeSchema() {
   `);
 
   // 6. Notes Table
+  exec(`DROP TABLE IF EXISTS notes;`);
   exec(`
     CREATE TABLE IF NOT EXISTS notes (
       id TEXT PRIMARY KEY,
       diagram_id TEXT NOT NULL,
+      user_id TEXT,
+      creator_name TEXT,
+      creator_avatar TEXT,
       content TEXT NOT NULL DEFAULT '',
-      color TEXT NOT NULL DEFAULT 'note-yellow',
+      color TEXT NOT NULL DEFAULT 'table-theme-violet',
       x INTEGER NOT NULL DEFAULT 100,
       y INTEGER NOT NULL DEFAULT 100,
-      width INTEGER NOT NULL DEFAULT 200,
-      height INTEGER NOT NULL DEFAULT 150,
+      width INTEGER NOT NULL DEFAULT 250,
+      height INTEGER NOT NULL DEFAULT 120,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (diagram_id) REFERENCES diagrams(id) ON DELETE CASCADE
     );
