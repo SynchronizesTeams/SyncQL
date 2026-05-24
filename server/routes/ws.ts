@@ -82,6 +82,15 @@ export default defineWebSocketHandler({
       const data = JSON.parse(message.text());
       const room = rooms.get(diagramId);
       
+      // Determine active role dynamically from the session state
+      let activeRole = role;
+      if (room) {
+        const collab = room.get(peer.id);
+        if (collab) {
+          activeRole = collab.role;
+        }
+      }
+      
       // 1. Guard against viewer write attempts
       const writeActions = [
         'table-move-end', 'table-create', 'table-update', 'table-delete',
@@ -89,8 +98,13 @@ export default defineWebSocketHandler({
         'relation-create', 'relation-delete', 'diagram-update'
       ];
       
-      if (writeActions.includes(data.type) && role === 'viewer') {
+      if (writeActions.includes(data.type) && activeRole === 'viewer') {
         console.warn(`Unauthorized write attempt from viewer peer ${peer.id} in room ${diagramId}`);
+        // Reset local client saving status back to avoid infinite saving wheel
+        peer.send(JSON.stringify({ 
+          type: 'ack', 
+          ackId: data.ackId 
+        }));
         return;
       }
       
