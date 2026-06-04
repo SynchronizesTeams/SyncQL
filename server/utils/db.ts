@@ -83,6 +83,7 @@ function initializeSchema() {
       avatar_url TEXT,
       github_id TEXT UNIQUE,
       google_id TEXT UNIQUE,
+      sso_id TEXT UNIQUE,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
   `);
@@ -217,6 +218,13 @@ function initializeSchema() {
   // Migrate workspace_members table to have status column
   try {
     exec("ALTER TABLE workspace_members ADD COLUMN status TEXT DEFAULT 'accepted';");
+  } catch (e) {
+    // Column already exists
+  }
+
+  // Migrate users table to have sso_id TEXT column
+  try {
+    exec('ALTER TABLE users ADD COLUMN sso_id TEXT;');
   } catch (e) {
     // Column already exists
   }
