@@ -21,6 +21,12 @@ export default defineNuxtConfig({
   },
   css: [
     '~/assets/css/app.css'
-  ]
+  ],
+  runtimeConfig: {
+    ssoIssuer: process.env.SSO_ISSUER || 'https://sso.synchronizeteams.com',
+    ssoClientId: process.env.SSO_CLIENT_ID || 'nuxt4-app',
+    ssoClientSecret: process.env.SSO_CLIENT_SECRET || 'nuxt4-secret-key-456',
+    ssoRedirectUri: process.env.SSO_REDIRECT_URI || ''
+  }
 })
 
